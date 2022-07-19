@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
 class ConnectionPooling
-  class AbstractConnectionAdapter
+  class AbstractConnectionAdapter < ActiveRecord::ConnectionAdapters::AbstractAdapter
     attr_accessor :pool
     attr_reader :owner, :lock, :conn
     alias in_use? :owner
 
-    def initialize(spec, conn_klass)
-      @conn = conn_klass.new(spec)
-      @idle_since = Concurrent.monotonic_time
-      @lock = ActiveSupport::Concurrency::LoadInterlockAwareMonitor.new
+    def initialize(connection = nil)
+      raise NotImplementedError if connection.nil?
+
+      super
     end
 
     def lease
