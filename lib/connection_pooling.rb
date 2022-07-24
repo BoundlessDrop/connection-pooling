@@ -18,7 +18,7 @@ class ConnectionPooling
   def initialize(spec, client_config, adapter_klass, env_name)
     raise EmptyConfig if client_config.empty? || adapter_klass.blank?
 
-    spec = spec.merge(DEFAULT_OPTIONS)
+    spec = DEFAULT_OPTIONS.merge(spec)
     db_config = DbConfig.new(spec, env_name, adapter_klass.name)
     pool_config = ActiveRecord::ConnectionAdapters::PoolConfig.new(
       adapter_klass,
