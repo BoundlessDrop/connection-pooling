@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class ConnectionPooling
+  # This class servers as a simple interface for implmenting a specific DB adapter
   class AbstractConnectionAdapter < ActiveRecord::ConnectionAdapters::AbstractAdapter
     attr_accessor :pool
     attr_reader :owner, :lock, :conn
@@ -10,54 +11,6 @@ class ConnectionPooling
       raise NotImplementedError if connection.nil?
 
       super
-    end
-
-    def lease
-      if in_use?
-        msg = +"Cannot lease connection, "
-        if @owner == Thread.current
-          msg << "it is already leased by the current thread."
-        else
-          msg << "it is already in use by a different thread: #{@owner}. " \
-            "Current thread: #{Thread.current}."
-        end
-        raise ActiveRecord::ActiveRecordError, msg
-      end
-
-      @owner = Thread.current
-    end
-
-    def steal! # :nodoc:
-      if in_use?
-        if @owner != Thread.current
-          pool.send :remove_connection_from_thread_cache, self, @owner
-
-          @owner = Thread.current
-        end
-      else
-        raise ActiveRecord::ActiveRecordError, "Cannot steal connection, it is not currently leased."
-      end
-    end
-
-    def expire
-      if in_use?
-        if @owner != Thread.current
-          raise ActiveRecord::ActiveRecordError, "Cannot expire connection, " \
-            "it is owned by a different thread: #{@owner}. " \
-            "Current thread: #{Thread.current}."
-        end
-
-        @idle_since = Concurrent.monotonic_time
-        @owner = nil
-      else
-        raise ActiveRecord::ActiveRecordError, "Cannot expire connection, it is not currently leased."
-      end
-    end
-
-    def seconds_idle # :nodoc:
-      return 0 if in_use?
-
-      Concurrent.monotonic_time - @idle_since
     end
 
     def disconnect!

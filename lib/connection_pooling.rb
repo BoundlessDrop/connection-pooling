@@ -1,5 +1,7 @@
-require 'active_record'
-require 'active_record/database_configurations/database_config'
+# frozen_string_literal: true
+
+require "active_record"
+require "active_record/database_configurations/database_config"
 require "connection_pooling/abstract_pool"
 require "connection_pooling/abstract_connection_adapter"
 require "connection_pooling/db_config"
@@ -11,7 +13,7 @@ class ConnectionPooling
     idle_timeout: 3,
     pool: 5,
     reaping_frequency: 5
-  }
+  }.freeze
 
   attr_accessor :pool
 
@@ -30,16 +32,20 @@ class ConnectionPooling
     @pool = AbstractPool.new(pool_config, client_config, adapter_klass)
   end
 
-  def method_missing(meth, *args)
-    run { |c| c.conn.send(meth, *args) }
+  def method_missing(method_name, *args, **extra_args)
+    run do |c|
+      c.conn.send(method_name, *args, **extra_args) { yield }
+    end
+  end
+
+  def respond_to_missing?(method_name, include_private = false)
+    run { |c| c.conn.respond_to?(method_name, include_private) }
   end
 
   def run
-    begin
-      @c = pool.checkout
-      yield @c
-    ensure
-      pool.checkin(@c) if @c && @c.owner == Thread.current
-    end
+    @c = pool.checkout
+    yield @c
+  ensure
+    pool.checkin(@c) if @c && @c.owner == Thread.current
   end
 end
