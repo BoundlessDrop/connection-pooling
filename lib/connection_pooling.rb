@@ -33,19 +33,12 @@ class ConnectionPooling
   end
 
   def method_missing(method_name, *args, **extra_args)
-    run do |c|
-      c.conn.send(method_name, *args, **extra_args) { yield }
+    @pool.with_connection do |c|
+      c.conn.send(method_name, *args, **extra_args) { |*args| yield *args }
     end
   end
 
   def respond_to_missing?(method_name, include_private = false)
-    run { |c| c.conn.respond_to?(method_name, include_private) }
-  end
-
-  def run
-    @c = pool.checkout
-    yield @c
-  ensure
-    pool.checkin(@c) if @c && @c.owner == Thread.current
+    @pool.with_connection { |c| c.conn.respond_to?(method_name, include_private) }
   end
 end
